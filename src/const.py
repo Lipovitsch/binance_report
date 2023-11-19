@@ -32,5 +32,13 @@ class ColumnsMapper:
     }
 
     FIAT = {
-
+        "createTime": "Data utworzenia",
+        "updateTime": "Data aktualizacji",
+        "indicatedAmount": "Ilość przesyłana",
+        "amount": "Ilość otrzymana",
+        "totalFee": "Prowizja",
+        "fiatCurrency": "Waluta FIAT",
+        "method": "Metoda płatności",
+        "status": "Status",
+        "orderNo": "Numer zamówienia",
     }

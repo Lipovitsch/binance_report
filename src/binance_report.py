@@ -1,9 +1,10 @@
+import math
 import json
+from pprint import pprint
 from datetime import datetime, timedelta
+
 import pandas as pd
 from binance.client import Client
-
-from pprint import pprint
 
 from const import *
 
@@ -24,8 +25,9 @@ def timestamp_to_datetime(timestamp: int):
 
 class BinanceReport(Client):
     
-    def __init__(self, api_key, secret_key):
+    def __init__(self, api_key, secret_key, progress_callback = None):
         super().__init__(api_key=api_key, api_secret=secret_key)
+        self.progress_callback = progress_callback
     
 
     def get_symbols(self) -> list:
@@ -34,40 +36,69 @@ class BinanceReport(Client):
         return symbols
     
 
-    def get_krypto_transactions(self, start_date: datetime = None, end_date: datetime = None):
+    def get_crypto_transactions(self, start_date: datetime = None, end_date: datetime = None):
         symbols = self.get_symbols()
 
         output_list = []
+        date_inc = timedelta(days=1)
+        periods = math.ceil((end_date - start_date) / date_inc)
+
         for i, symbol in enumerate(symbols):
-            msg = f"Pobieranie danych dla symbolu '{symbol}' ({i}/{len(symbols)})"
-            print(msg)
 
-            start_timestamp = date_to_timestamp(start_date) if start_date != None else None
-            end_timestamp = date_to_timestamp(end_date) if start_date != None else None
+            msg = f"Pobieranie danych dla symbolu '{symbol}' ({i+1}/{len(symbols)})..."
+            if self.progress_callback != None:
+                self.progress_callback.emit(msg)
 
-            trades = self.get_my_trades(
-                symbol    = symbol, 
-                startTime = start_timestamp,
-                endTime   = end_timestamp
-            )
+            trades = self.get_my_trades(symbol=symbol)
+
+            if len(trades) >= 500:
+
+                start_period = start_date
+                end_period = start_date + date_inc
+                period = 1
+                while start_period < end_date:
+                    if end_period >= end_date:
+                        end_period = end_date
+
+                    msg = f"Wykryto ponad 500 transakcji dla symbolu '{symbol}' - pobieranie dzień po dniu ({period}/{periods})..."
+                    if self.progress_callback != None:
+                        self.progress_callback.emit(msg)
+
+                    start_timestamp = date_to_timestamp(start_period) # if start_date != None else None
+                    end_timestamp = date_to_timestamp(end_period) # if start_date != None else None
+
+                    trades = self.get_my_trades(
+                        symbol    = symbol, 
+                        startTime = start_timestamp,
+                        endTime   = end_timestamp
+                    )
+                    
+                    output_list += trades
+
+                    start_period += date_inc
+                    end_period += date_inc
+                    period += 1
+
+            else:
+                output_list += trades
             
-            output_list += trades
-
-            # if trades:
-            #     pprint(trades)
-            #     print()
-
             if i == 10:
                 break
         
         output_df = pd.DataFrame(output_list)
-        output_df["isBuyer"] = output_df["isBuyer"].apply(lambda x: "Kupujący" if x else "Sprzedający")
-        output_df["isMaker"] = output_df["isMaker"].apply(lambda x: "Twórca" if x else "Biorca")
-        output_df["time"] = output_df["time"].apply(timestamp_to_datetime)
-        output_df.drop(["orderListId", "isBestMatch"], axis=1, inplace=True)
 
-        output_df = output_df[ColumnsMapper.KRYPTO.keys()]
-        output_df = output_df.rename(ColumnsMapper.KRYPTO, axis=1)
+        if len(output_df) > 0:
+            output_df["isBuyer"] = output_df["isBuyer"].apply(lambda x: "Kupujący" if x else "Sprzedający")
+            output_df["isMaker"] = output_df["isMaker"].apply(lambda x: "Twórca" if x else "Biorca")
+
+            output_df["time"] = output_df["time"].apply(timestamp_to_datetime)
+            output_df = output_df[(output_df['time'] >= start_date) & (output_df['time'] <= end_date)]
+
+            cols_to_float = ['price', 'qty', 'quoteQty', 'commission']
+            output_df[cols_to_float] = output_df[cols_to_float].apply(lambda x: x.astype(float))
+
+            output_df = output_df[ColumnsMapper.KRYPTO.keys()]
+            output_df = output_df.rename(ColumnsMapper.KRYPTO, axis=1)
 
         return output_df
 
@@ -75,7 +106,9 @@ class BinanceReport(Client):
     def get_p2p_transactions(self, start_date: datetime, end_date: datetime):
         output_list = []
         date_inc = timedelta(days=30)
+        periods = math.ceil((end_date - start_date) / date_inc) * 2
 
+        period = 1
         for trade_type in ['BUY', 'SELL']:
             start_period = start_date
             end_period = start_date + date_inc
@@ -87,8 +120,9 @@ class BinanceReport(Client):
                 start_timestamp = date_to_timestamp(start_period)
                 end_timestamp = date_to_timestamp(end_period)
 
-                msg = f"Pobieranie transakcji P2P typu '{trade_type}' {start_period.date()} - {end_period.date()}"
-                print(msg)
+                msg = f"Pobieranie transakcji P2P typu '{trade_type}' ({period}/{periods})..."
+                if self.progress_callback != None:
+                    self.progress_callback.emit(msg)
 
                 deposits = self.get_c2c_trade_history(
                     startTimestamp = start_timestamp,
@@ -100,14 +134,19 @@ class BinanceReport(Client):
                 
                 start_period += date_inc
                 end_period += date_inc
+                period += 1
         
         output_list = [el for el in output_list if el['orderStatus'] == "COMPLETED"]
         output_df = pd.DataFrame(output_list)
 
-        output_df['createTime'] = output_df['createTime'].apply(timestamp_to_datetime)
+        if len(output_df) > 0:
+            output_df['createTime'] = output_df['createTime'].apply(timestamp_to_datetime)
 
-        output_df = output_df[ColumnsMapper.P2P.keys()]
-        output_df = output_df.rename(ColumnsMapper.P2P, axis=1)
+            cols_to_float = ['totalPrice', 'amount', 'unitPrice', 'commission', 'takerCommission', 'takerCommissionRate', 'takerAmount']
+            output_df[cols_to_float] = output_df[cols_to_float].apply(lambda x: x.astype(float))
+
+            output_df = output_df[ColumnsMapper.P2P.keys()]
+            output_df = output_df.rename(ColumnsMapper.P2P, axis=1)
 
         return output_df
 
@@ -129,8 +168,9 @@ class BinanceReport(Client):
 
 
     def get_fiat_transactions(self, start_date: datetime, end_date: datetime):
-        msg = f"Checking FIAT transactions from {start_date} to {end_date}"
-        print(msg)
+        msg = f"Pobieranie transakcji FIAT..."
+        if self.progress_callback != None:
+            self.progress_callback.emit(msg)
 
         start_timestamp = date_to_timestamp(start_date)
         end_timestamp = date_to_timestamp(end_date)
@@ -143,13 +183,24 @@ class BinanceReport(Client):
         output_list = output_deposit_list + output_withdraw_list
 
         output_df = pd.DataFrame(output_list)
+
+        if len(output_df) > 0:
+            output_df['createTime'] = output_df['createTime'].apply(timestamp_to_datetime)
+            output_df['updateTime'] = output_df['updateTime'].apply(timestamp_to_datetime)
+
+            cols_to_float = ['indicatedAmount', 'amount', 'totalFee']
+            output_df[cols_to_float] = output_df[cols_to_float].apply(lambda x: x.astype(float))
+
+            output_df = output_df[ColumnsMapper.FIAT.keys()]
+            output_df = output_df.rename(ColumnsMapper.FIAT, axis=1)
+
         return output_df
 
 
 def main():
     api_key, secret_key = get_api_keys(r"data/keys_n.json")
     client = BinanceReport(api_key, secret_key)
-    result = client.get_krypto_transactions()
+    result = client.get_crypto_transactions()
     print(result)
     
 
