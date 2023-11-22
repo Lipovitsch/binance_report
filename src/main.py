@@ -24,8 +24,10 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QDateEdit
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import *
+import icon
 
 from exceptions import *
+from const import *
 from excel_writer import ExcelWriter
 from gui import Ui_MainWindow
 from binance_report import BinanceReport, get_api_keys
@@ -34,13 +36,15 @@ from binance_report import BinanceReport, get_api_keys
 def show_msgbox(message: str, msg_type: str, **kwargs):
     """Types: Information, Warning, Error"""
     msg = QMessageBox()
+    icon = QIcon(":Logo.png")
+    msg.setWindowIcon(icon)
     # msg.setWindowIcon(get_icon())
     if msg_type == "Information":
         msg.setIcon(QMessageBox.Information)
 
-        if "open_folder" in kwargs.keys():
+        if "option_open" in kwargs.keys():
             msg.setStandardButtons(QMessageBox.Ok | QMessageBox.Open)
-            msg.button(QMessageBox.Open).setText(kwargs["open_folder"])
+            msg.button(QMessageBox.Open).setText(kwargs["option_open"])
 
     elif msg_type == "Warning":
         msg.setIcon(QMessageBox.Warning)
@@ -78,7 +82,7 @@ def get_date_as_datetime(date_attr: QDateEdit):
 
 class ThreadSignals(QObject):
     set_gui_state = pyqtSignal(bool)
-    finished = pyqtSignal()
+    finished = pyqtSignal(str)
     error = pyqtSignal(Exception)
     progress = pyqtSignal(str)
 
@@ -101,8 +105,8 @@ class Thread(QThread):
         # Retrieve args/kwargs here; and fire processing using them
         try:
             self.signals.set_gui_state.emit(False)
-            self.fn(*self.args, **self.kwargs)
-            self.signals.finished.emit()
+            res = self.fn(*self.args, **self.kwargs)
+            self.signals.finished.emit(res)
 
         except Exception as e:
             self.signals.error.emit(e)
@@ -116,18 +120,33 @@ class BRMainWindow(Ui_MainWindow):
         # class variables definition
         self.path_api_keys = ''
         self.path_report = ''
+        self.binance_symbols = []
+        self.thread: Thread = '' # placeholder
 
         self.MainWindow = QtWidgets.QMainWindow()
         self.setupUi(self.MainWindow)
         self.MainWindow.setWindowTitle(MAIN_WINDOW)
 
-        self.GUI_MenuBar_Info.triggered.connect(self.show_program_info)
+        icon = QIcon(':Logo.png')
+        self.MainWindow.setWindowIcon(icon)
+
+        self.GUI_MenuBar_ProgramInfo.triggered.connect(self.show_program_info)
         self.GUI_Button_KluczeAPI.clicked.connect(self.browse_path_api_keys)
         self.Gui_Button_LokalizacjaRaportu.clicked.connect(self.browse_path_report)
         self.GUI_MenuBar_Generuj.triggered.connect(self.generate_template_api_keys)
         self.GUI_Button_GenerujRaport.clicked.connect(self.run_program)
+        self.GUI_CheckBox_Krypto.clicked.connect(self.set_crypto_choice_state)
+        self.GUI_GroupBox_WyborKrypto.clicked.connect(self.set_crypto_choice_internal_state)
+        self.GUI_LineEdit_Symbol.textChanged.connect(self.update_binance_symbols_list)
+        self.GUI_List_Symbol.itemDoubleClicked.connect(self.add_chosen_symbol)
+        self.GUI_List_SymbolChosen.itemDoubleClicked.connect(self.remove_chosen_symbol)
 
         app.aboutToQuit.connect(self.end_program)
+
+        # set initial state
+        self.GUI_GroupBox_Wybor.setEnabled(False)
+        self.GUI_GroupBox_Daty.setEnabled(False)
+        self.GUI_GroupBox_Raport.setEnabled(False)
 
 
     def show_program_info(self):
@@ -141,7 +160,19 @@ class BRMainWindow(Ui_MainWindow):
                 filter = "Pliki JSON (*.json)"
             )
         self.GUI_LineEdit_KluczeAPI.setText(self.path_api_keys)
-    
+
+        if self.path_api_keys != '':
+            self.GUI_GroupBox_Wybor.setEnabled(True)
+            self.GUI_GroupBox_Daty.setEnabled(True)
+            self.GUI_GroupBox_Raport.setEnabled(True)
+
+            api_key, secret_key = get_api_keys(self.path_api_keys)
+            binance_report = BinanceReport(api_key=api_key, secret_key=secret_key)
+            self.binance_symbols = binance_report.get_symbols()
+            self.GUI_Label_SymbolList.setText(f"Dostępne symbole ({len(self.binance_symbols)})")
+            self.GUI_List_Symbol.clear()
+            self.GUI_List_Symbol.addItems(self.binance_symbols)
+
 
     def browse_path_report(self):
         self.path_report = browse_save_file(
@@ -152,6 +183,44 @@ class BRMainWindow(Ui_MainWindow):
         self.GUI_LineEdit_LokalizacjaRaportu.setText(self.path_report)
     
 
+    def set_crypto_choice_state(self):
+        krypto_checkbox_state = self.GUI_CheckBox_Krypto.isChecked()
+        self.GUI_GroupBox_WyborKrypto.setEnabled(krypto_checkbox_state)
+
+    
+    def set_crypto_choice_internal_state(self):
+        krypto_choice_groupbox_state = self.GUI_GroupBox_WyborKrypto.isChecked()
+        self.GUI_Label_Symbol.setEnabled(krypto_choice_groupbox_state)
+        self.GUI_Label_SymbolList.setEnabled(krypto_choice_groupbox_state)
+        self.GUI_Label_SymbolChosen.setEnabled(krypto_choice_groupbox_state)
+        self.GUI_LineEdit_Symbol.setEnabled(krypto_choice_groupbox_state)
+        self.GUI_List_Symbol.setEnabled(krypto_choice_groupbox_state)
+        self.GUI_List_SymbolChosen.setEnabled(krypto_choice_groupbox_state)
+
+
+    def update_binance_symbols_list(self):
+        curr_text = self.GUI_LineEdit_Symbol.text().upper()
+        symbols = [symbol for symbol in self.binance_symbols if curr_text in symbol]
+        self.GUI_List_Symbol.clear()
+        self.GUI_List_Symbol.addItems(symbols)
+
+
+    def add_chosen_symbol(self):
+        symbol = self.GUI_List_Symbol.currentItem()
+        self.GUI_List_SymbolChosen.addItem(symbol.text())
+
+
+    def remove_chosen_symbol(self):
+        symbol = self.GUI_List_SymbolChosen.currentItem()
+        row = self.GUI_List_SymbolChosen.row(symbol)
+        self.GUI_List_SymbolChosen.takeItem(row)
+
+
+    def get_chosen_symbols(self) -> list:
+        symbols = self.GUI_List_SymbolChosen.findItems("*", Qt.MatchFlag.MatchWildcard)
+        return [symbol.text() for symbol in symbols]
+
+    
     def generate_template_api_keys(self):
         path = ''
         path = browse_save_file(
@@ -162,7 +231,7 @@ class BRMainWindow(Ui_MainWindow):
         if path != '':
             with open(path, 'w') as f:
                 f.write("""{\n\t"api_key": "xxxxxxxxxx",\n\t"secret_key": "xxxxxxxxxx"\n}""")
-            result = show_msgbox("Zapisano szablon pliku kluczy API", "Information", open_folder = "Otwórz plik")
+            result = show_msgbox("Zapisano szablon pliku kluczy API", "Information", option_open = "Otwórz plik")
             if result == QMessageBox.Open:
                 os.startfile(path)
 
@@ -180,6 +249,12 @@ class BRMainWindow(Ui_MainWindow):
         if self.path_report == '':
             raise PathError("Podaj lokalizację do zapisu raportu")
         
+        chosen_symbols = None
+        if self.GUI_GroupBox_WyborKrypto.isChecked() and self.GUI_GroupBox_WyborKrypto.isEnabled():
+            chosen_symbols = self.get_chosen_symbols()
+            if len(chosen_symbols) == 0:
+                raise SymbolsError("Wybierz symbole lub odznacz 'Wybór krypto'")
+        
         api_key, secret_key = get_api_keys(self.path_api_keys)
 
         binance_report = BinanceReport(api_key=api_key, secret_key=secret_key, progress_callback=progress_callback)
@@ -188,7 +263,7 @@ class BRMainWindow(Ui_MainWindow):
         list_of_empty = []
 
         if self.GUI_CheckBox_Krypto.isChecked():
-            output_df_dict["Krypto"] = binance_report.get_crypto_transactions(start_date, end_date)
+            output_df_dict["Krypto"] = binance_report.get_crypto_transactions(start_date, end_date, chosen_symbols)
             if len(output_df_dict["Krypto"]) == 0:
                 list_of_empty.append("Krypto")
         
@@ -202,11 +277,15 @@ class BRMainWindow(Ui_MainWindow):
             if len(output_df_dict["FIAT"]) == 0:
                 list_of_empty.append("FIAT")
         
+        if len(output_df_dict) == 0:
+            raise CheckBoxError("Nie wybrano żadnej opcji")
+    
+        end_msg = ''
         if len(list_of_empty) > 0:
-            add_info = ''
             if len(list_of_empty) == len(output_df_dict.keys()):
-                add_info = "\nNie wygenerowano raportu."
-            show_msgbox(f"Nie znaleziono transakcji dla: {', '.join(list_of_empty)}.{add_info}", msg_type="Information")
+                end_msg = Messages.TRANSACTIONS_NOT_FOUND % ', '.join(list_of_empty) + '\n' + Messages.REPORT_NOT_GENERATED
+            else:
+                end_msg = Messages.TRANSACTIONS_NOT_FOUND % ', '.join(list_of_empty) + '\n' + Messages.REPORT_GENERATED
         
         updated_output_df_dict = {}
         for key in output_df_dict.keys():
@@ -216,25 +295,33 @@ class BRMainWindow(Ui_MainWindow):
         if len(updated_output_df_dict) > 0:
             xlsx_writer = ExcelWriter(self.path_report)
             xlsx_writer.save_dataframes_to_excel(updated_output_df_dict)
+        
+        
+        if end_msg == '':
+            return Messages.REPORT_GENERATED
         else:
-            raise CheckBoxError("Żaden checkbox nie został zaznaczony")
+            return end_msg
 
 
     # Functions for multithreading
     def program_set_gui_state(self, state: bool):
         self.menuPlik.setEnabled(state)
-        self.GUI_GroupBox_KluczeAPI.setEnabled(state)
+        self.GUI_GroupBox_API.setEnabled(state)
         self.GUI_GroupBox_Wybor.setEnabled(state)
         self.GUI_GroupBox_Daty.setEnabled(state)
-        self.GUI_GroupBox_LokalizacjaRaportu.setEnabled(state)
+        self.GUI_GroupBox_Raport.setEnabled(state)
         self.GUI_Button_GenerujRaport.setEnabled(state)
 
 
-    def program_finished(self):
+    def program_finished(self, res: str | None):
         self.GUI_Label_Progress.setText('')
-        result = show_msgbox("Wygenerowano raport", "Information", open_folder = "Otwórz plik")
-        if result == QMessageBox.Open:
-            os.startfile(self.path_report)
+
+        if Messages.REPORT_GENERATED in res:
+            result = show_msgbox(res, "Information", option_open = "Otwórz plik")
+            if result == QMessageBox.Open:
+                os.startfile(self.path_report)
+        else:
+            result = show_msgbox(res, "Information")
     
 
     def program_error(self, e):

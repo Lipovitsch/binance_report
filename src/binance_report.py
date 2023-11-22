@@ -1,12 +1,15 @@
 import math
 import json
 from pprint import pprint
+import traceback
 from datetime import datetime, timedelta
 
 import pandas as pd
+import binance.exceptions as BinanceExceptions
 from binance.client import Client
 
 from const import *
+from exceptions import *
 
 
 def get_api_keys(path):
@@ -36,8 +39,9 @@ class BinanceReport(Client):
         return symbols
     
 
-    def get_crypto_transactions(self, start_date: datetime = None, end_date: datetime = None):
-        symbols = self.get_symbols()
+    def get_crypto_transactions(self, start_date: datetime = None, end_date: datetime = None, symbols: list | None = None):
+        if symbols == None:
+            symbols = self.get_symbols()
 
         output_list = []
         date_inc = timedelta(days=1)
@@ -49,7 +53,10 @@ class BinanceReport(Client):
             if self.progress_callback != None:
                 self.progress_callback.emit(msg)
 
-            trades = self.get_my_trades(symbol=symbol)
+            try:
+                trades = self.get_my_trades(symbol=symbol)
+            except BinanceExceptions.BinanceAPIException as e:
+                raise APIError(e)
 
             if len(trades) >= 500:
 
@@ -67,11 +74,14 @@ class BinanceReport(Client):
                     start_timestamp = date_to_timestamp(start_period) # if start_date != None else None
                     end_timestamp = date_to_timestamp(end_period) # if start_date != None else None
 
-                    trades = self.get_my_trades(
-                        symbol    = symbol, 
-                        startTime = start_timestamp,
-                        endTime   = end_timestamp
-                    )
+                    try:
+                        trades = self.get_my_trades(
+                            symbol    = symbol, 
+                            startTime = start_timestamp,
+                            endTime   = end_timestamp
+                        )
+                    except BinanceExceptions.BinanceAPIException as e:
+                        raise APIError(e)
                     
                     output_list += trades
 
@@ -124,11 +134,14 @@ class BinanceReport(Client):
                 if self.progress_callback != None:
                     self.progress_callback.emit(msg)
 
-                deposits = self.get_c2c_trade_history(
-                    startTimestamp = start_timestamp,
-                    endTimestamp   = end_timestamp,
-                    tradeType      = trade_type
-                )
+                try:
+                    deposits = self.get_c2c_trade_history(
+                        startTimestamp = start_timestamp,
+                        endTimestamp   = end_timestamp,
+                        tradeType      = trade_type
+                    )
+                except BinanceExceptions.BinanceAPIException as e:
+                    raise APIError(e)
 
                 output_list += deposits["data"]
                 
@@ -175,8 +188,11 @@ class BinanceReport(Client):
         start_timestamp = date_to_timestamp(start_date)
         end_timestamp = date_to_timestamp(end_date)
 
-        output_deposit_list = self.get_fiat_deposit_transactions(start_timestamp, end_timestamp)
-        output_withdraw_list = self.get_fiat_withdraw_transactions(start_timestamp, end_timestamp)
+        try:
+            output_deposit_list = self.get_fiat_deposit_transactions(start_timestamp, end_timestamp)
+            output_withdraw_list = self.get_fiat_withdraw_transactions(start_timestamp, end_timestamp)
+        except BinanceExceptions.BinanceAPIException as e:
+            raise APIError(f"{e}")
 
         output_deposit_list = [el for el in output_deposit_list if el['status'] == "Successful"]
         output_withdraw_list = [el for el in output_withdraw_list if el['status'] == "Successful"]

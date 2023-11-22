@@ -42,3 +42,8 @@ class ColumnsMapper:
         "status": "Status",
         "orderNo": "Numer zamówienia",
     }
+
+class Messages:
+    REPORT_GENERATED = "Wygenerowano raport"
+    REPORT_NOT_GENERATED = "Nie wygenerowano raportu"
+    TRANSACTIONS_NOT_FOUND = "Nie znaleziono transakcji dla: %s"

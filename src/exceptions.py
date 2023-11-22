@@ -12,3 +12,11 @@ class DateError(BinanceReportException):
 
 class CheckBoxError(BinanceReportException):
     pass
+
+
+class SymbolsError(BinanceReportException):
+    pass
+
+
+class APIError(BinanceReportException):
+    pass
