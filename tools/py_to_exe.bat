@@ -1,0 +1,1 @@
+pyinstaller --noconfirm --onefile --windowed --icon="C:\Python_Projects\Binance_report\src\gui\Logo.ico" C:/Python_Projects/Binance_report/src/main.py --distpath ".\build" --workpath ".\output" --specpath ".\output" -n "Binance Report Generator"
