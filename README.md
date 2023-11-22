@@ -1,5 +1,5 @@
 # Binance report generator
-![image](https://github.com/Lipovitsch/binance_report/assets/92733509/86eff288-6fa9-4bcf-a04c-83091cf043bd)
+![image](https://github.com/Lipovitsch/binance_report/assets/92733509/0e489ee6-962f-459e-96d6-a5bc5c3b2af9)
 
 ## Versions
 You can find current version inside the build folder
