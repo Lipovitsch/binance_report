@@ -4,6 +4,10 @@
 ## Versions
 You can find current version inside the build folder
 
-### Version(1.0)
+### Version 1.1 (current)
+- Added tax calculation
+- Added fiat - crypto transactions history
+
+### Version 1.0
 - created GUI
 - connected functionality with GUI

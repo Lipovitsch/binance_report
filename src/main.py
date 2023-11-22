@@ -1,6 +1,6 @@
 ################### Program Info ###################
-VERSION = "1.0"
-RELEASE = "2023/11/19 16:00"
+VERSION = "1.1"
+RELEASE = "2023/11/22 17:30"
 INFO_GUI = f"""
 VERSION
 {VERSION}
@@ -20,6 +20,7 @@ import sys
 import traceback
 from datetime import datetime
 
+import pandas as pd
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QDateEdit
 from PyQt5.QtGui import QIcon
@@ -230,7 +231,7 @@ class BRMainWindow(Ui_MainWindow):
             )
         if path != '':
             with open(path, 'w') as f:
-                f.write("""{\n\t"api_key": "xxxxxxxxxx",\n\t"secret_key": "xxxxxxxxxx"\n}""")
+                f.write("""{\n\t"api_key": "tutaj_wklej_klucz_publiczny",\n\t"secret_key": "tutaj_wklej_klucz_prywatny"\n}""")
             result = show_msgbox("Zapisano szablon pliku kluczy API", "Information", option_open = "Otwórz plik")
             if result == QMessageBox.Open:
                 os.startfile(path)
@@ -261,21 +262,45 @@ class BRMainWindow(Ui_MainWindow):
 
         output_df_dict = {}
         list_of_empty = []
+        list_of_checked = []
 
         if self.GUI_CheckBox_Krypto.isChecked():
+            list_of_checked.append("Krypto")
             output_df_dict["Krypto"] = binance_report.get_crypto_transactions(start_date, end_date, chosen_symbols)
             if len(output_df_dict["Krypto"]) == 0:
                 list_of_empty.append("Krypto")
         
         if self.GUI_CheckBox_P2P.isChecked():
+            list_of_checked.append("P2P")
             output_df_dict["P2P"] = binance_report.get_p2p_transactions(start_date, end_date)
             if len(output_df_dict["P2P"]) == 0:
                 list_of_empty.append("P2P")
         
+        if self.GUI_CheckBox_FIATKrypto.isChecked():
+            list_of_checked.append("FIAT_Krypto")
+            output_df_dict["FIAT_Krypto"] = binance_report.get_fiat_crypto_transactions(start_date, end_date)
+            if len(output_df_dict["FIAT_Krypto"]) == 0:
+                list_of_empty.append("FIAT_Krypto")
+        
         if self.GUI_CheckBox_FIAT.isChecked():
+            list_of_checked.append("FIAT")
             output_df_dict["FIAT"] = binance_report.get_fiat_transactions(start_date, end_date)
             if len(output_df_dict["FIAT"]) == 0:
                 list_of_empty.append("FIAT")
+        
+        if self.GUI_CheckBox_RaportPodatkowy.isChecked():
+            list_of_checked.append("Raport_podatkowy")
+            if not "P2P" in output_df_dict.keys():
+                output_df_dict["P2P"] = binance_report.get_p2p_transactions(start_date, end_date)
+            if not "FIAT_Krypto" in output_df_dict.keys():
+                output_df_dict["FIAT_Krypto"] = binance_report.get_fiat_crypto_transactions(start_date, end_date)
+            if not "FIAT" in output_df_dict.keys():
+                output_df_dict["FIAT"] = binance_report.get_fiat_transactions(start_date, end_date)
+
+            columns = ["Data utworzenia", "Ilość FIAT", "Prowizja", "FIAT", "Rodzaj handlu"]
+            to_concat = [el[columns] for el in [output_df_dict["P2P"], output_df_dict["FIAT_Krypto"], output_df_dict["FIAT"]] if len(el) > 0]
+            output_df_dict["Raport_podatkowy"] = pd.concat(to_concat)
+            output_df_dict["Raport_podatkowy"].sort_values(by="Data utworzenia", inplace=True)
         
         if len(output_df_dict) == 0:
             raise CheckBoxError("Nie wybrano żadnej opcji")
@@ -289,13 +314,12 @@ class BRMainWindow(Ui_MainWindow):
         
         updated_output_df_dict = {}
         for key in output_df_dict.keys():
-            if key not in list_of_empty:
+            if key not in list_of_empty and key in list_of_checked:
                 updated_output_df_dict[key] = output_df_dict[key]
 
         if len(updated_output_df_dict) > 0:
             xlsx_writer = ExcelWriter(self.path_report)
             xlsx_writer.save_dataframes_to_excel(updated_output_df_dict)
-        
         
         if end_msg == '':
             return Messages.REPORT_GENERATED

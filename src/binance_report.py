@@ -71,8 +71,8 @@ class BinanceReport(Client):
                     if self.progress_callback != None:
                         self.progress_callback.emit(msg)
 
-                    start_timestamp = date_to_timestamp(start_period) # if start_date != None else None
-                    end_timestamp = date_to_timestamp(end_period) # if start_date != None else None
+                    start_timestamp = date_to_timestamp(start_period)
+                    end_timestamp = date_to_timestamp(end_period)
 
                     try:
                         trades = self.get_my_trades(
@@ -92,17 +92,15 @@ class BinanceReport(Client):
             else:
                 output_list += trades
             
-            if i == 10:
-                break
-        
         output_df = pd.DataFrame(output_list)
 
         if len(output_df) > 0:
             output_df["isBuyer"] = output_df["isBuyer"].apply(lambda x: "Kupujący" if x else "Sprzedający")
-            output_df["isMaker"] = output_df["isMaker"].apply(lambda x: "Twórca" if x else "Biorca")
+            output_df["isMaker"] = output_df["isMaker"].apply(lambda x: "MAKER" if x else "TAKER")
 
             output_df["time"] = output_df["time"].apply(timestamp_to_datetime)
             output_df = output_df[(output_df['time'] >= start_date) & (output_df['time'] <= end_date)]
+            output_df.sort_values(by='time', inplace=True)
 
             cols_to_float = ['price', 'qty', 'quoteQty', 'commission']
             output_df[cols_to_float] = output_df[cols_to_float].apply(lambda x: x.astype(float))
@@ -154,6 +152,9 @@ class BinanceReport(Client):
 
         if len(output_df) > 0:
             output_df['createTime'] = output_df['createTime'].apply(timestamp_to_datetime)
+            output_df.sort_values(by='createTime', inplace=True)
+
+            output_df['tradeType'] = output_df['tradeType'].apply(lambda x: "Wpłata" if x == "BUY" else "Wypłata")
 
             cols_to_float = ['totalPrice', 'amount', 'unitPrice', 'commission', 'takerCommission', 'takerCommissionRate', 'takerAmount']
             output_df[cols_to_float] = output_df[cols_to_float].apply(lambda x: x.astype(float))
@@ -162,22 +163,6 @@ class BinanceReport(Client):
             output_df = output_df.rename(ColumnsMapper.P2P, axis=1)
 
         return output_df
-
-
-    def get_fiat_deposit_transactions(self, start_timestamp: int, end_timestamp: int):
-        return self.get_fiat_deposit_withdraw_history(
-            beginTime       = start_timestamp,
-            endTime         = end_timestamp,
-            transactionType = 0
-        )['data']
-
-
-    def get_fiat_withdraw_transactions(self, start_timestamp: int, end_timestamp: int):
-        return self.get_fiat_deposit_withdraw_history(
-            beginTime       = start_timestamp,
-            endTime         = end_timestamp,
-            transactionType = 1
-        )['data']
 
 
     def get_fiat_transactions(self, start_date: datetime, end_date: datetime):
@@ -189,20 +174,25 @@ class BinanceReport(Client):
         end_timestamp = date_to_timestamp(end_date)
 
         try:
-            output_deposit_list = self.get_fiat_deposit_transactions(start_timestamp, end_timestamp)
-            output_withdraw_list = self.get_fiat_withdraw_transactions(start_timestamp, end_timestamp)
+            output_deposit_list = self.get_fiat_deposit_withdraw_history(beginTime=start_timestamp, endTime=end_timestamp, transactionType=0)['data']
+            output_withdraw_list = self.get_fiat_deposit_withdraw_history(beginTime=start_timestamp, endTime=end_timestamp, transactionType=1)['data']
         except BinanceExceptions.BinanceAPIException as e:
-            raise APIError(f"{e}")
+            raise APIError(e)
 
         output_deposit_list = [el for el in output_deposit_list if el['status'] == "Successful"]
         output_withdraw_list = [el for el in output_withdraw_list if el['status'] == "Successful"]
-        output_list = output_deposit_list + output_withdraw_list
+        
+        deposit_df = pd.DataFrame(output_deposit_list)
+        withdraw_df = pd.DataFrame(output_withdraw_list)
+        deposit_df["Rodzaj handlu"] = "Wpłata"
+        withdraw_df["Rodzaj handlu"] = "Wypłata"
 
-        output_df = pd.DataFrame(output_list)
+        output_df = pd.concat([deposit_df, withdraw_df])
 
         if len(output_df) > 0:
             output_df['createTime'] = output_df['createTime'].apply(timestamp_to_datetime)
             output_df['updateTime'] = output_df['updateTime'].apply(timestamp_to_datetime)
+            output_df.sort_values(by='createTime', inplace=True)
 
             cols_to_float = ['indicatedAmount', 'amount', 'totalFee']
             output_df[cols_to_float] = output_df[cols_to_float].apply(lambda x: x.astype(float))
@@ -213,11 +203,50 @@ class BinanceReport(Client):
         return output_df
 
 
+    def get_fiat_crypto_transactions(self, start_date: datetime, end_date: datetime):
+        msg = f"Pobieranie transakcji FIAT - krypto..."
+        if self.progress_callback != None:
+            self.progress_callback.emit(msg)
+
+        start_timestamp = date_to_timestamp(start_date)
+        end_timestamp = date_to_timestamp(end_date)
+
+        try:
+            buy_dict = self.get_fiat_payments_history(transactionType=0, beginTime=start_timestamp, endTime=end_timestamp)
+            sell_dict = self.get_fiat_payments_history(transactionType=1, beginTime=start_timestamp, endTime=end_timestamp)
+        except BinanceExceptions.BinanceAPIException as e:
+            raise APIError(e)
+
+        buy_list = [el for el in buy_dict['data'] if el['status'] == 'Completed'] if 'data' in buy_dict.keys() else []
+        sell_list = [el for el in sell_dict['data'] if el['status'] == 'Completed'] if 'data' in sell_dict.keys() else []
+        
+        buy_df = pd.DataFrame(buy_list)
+        sell_df = pd.DataFrame(sell_list)
+        buy_df["Rodzaj handlu"] = "Wpłata"
+        sell_df["Rodzaj handlu"] = "Wypłata"
+
+        output_df = pd.concat([buy_df, sell_df])
+
+        if len(output_df) > 0:
+            output_df['createTime'] = output_df['createTime'].apply(timestamp_to_datetime)
+            output_df['updateTime'] = output_df['updateTime'].apply(timestamp_to_datetime)
+            output_df.sort_values(by='createTime', inplace=True)
+
+            cols_to_float = ['obtainAmount', 'price', 'sourceAmount', 'totalFee']
+            output_df[cols_to_float] = output_df[cols_to_float].apply(lambda x: x.astype(float))
+
+            output_df = output_df[ColumnsMapper.FIAT_KRYPTO.keys()]
+            output_df = output_df.rename(ColumnsMapper.FIAT_KRYPTO, axis=1)
+
+        return  output_df
+
+
 def main():
     api_key, secret_key = get_api_keys(r"data/keys_n.json")
     client = BinanceReport(api_key, secret_key)
-    result = client.get_crypto_transactions()
-    print(result)
+    # result = client.get_fiat_crypto_transactions(datetime(2017, 1, 1), datetime(2024, 1, 1))
+    result = client.get_p2p_transactions(datetime(2023, 1, 1), datetime(2024, 1, 1))
+    pprint(result)
     
 
 if __name__ == "__main__":

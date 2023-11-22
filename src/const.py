@@ -15,11 +15,11 @@ class ColumnsMapper:
 
     P2P = {
         "createTime": "Data utworzenia",
-        "totalPrice": "Cena",
-        "fiat": "Fiat",
-        "amount": "Ilość",
-        "asset": "Aktywo",
-        "unitPrice": "Cena za jednostkę",
+        "totalPrice": "Ilość FIAT",
+        "fiat": "FIAT",
+        "amount": "Ilość krypto",
+        "asset": "Kryptowaluta",
+        "unitPrice": "Cena",
         "commission": "Prowizja",
         "takerCommission": "Prowizja biorcy",
         "takerCommissionRate": "Stawka prowizji biorcy",
@@ -33,14 +33,30 @@ class ColumnsMapper:
 
     FIAT = {
         "createTime": "Data utworzenia",
-        "updateTime": "Data aktualizacji",
-        "indicatedAmount": "Ilość przesyłana",
-        "amount": "Ilość otrzymana",
+        "indicatedAmount": "Ilość FIAT",
+        "amount": "Ilość FIAT otrzymana",
         "totalFee": "Prowizja",
-        "fiatCurrency": "Waluta FIAT",
+        "fiatCurrency": "FIAT",
+        "Rodzaj handlu": "Rodzaj handlu",
         "method": "Metoda płatności",
-        "status": "Status",
+        # "status": "Status",
         "orderNo": "Numer zamówienia",
+        "updateTime": "Data aktualizacji",
+    }
+
+    FIAT_KRYPTO = {
+        'createTime': "Data utworzenia",
+        'sourceAmount': 'Ilość FIAT',
+        'totalFee': 'Prowizja',
+        'fiatCurrency': 'FIAT',
+        'obtainAmount': 'Ilość krypto',
+        'cryptoCurrency': 'Kryptowaluta',
+        'price': 'Cena',
+        "Rodzaj handlu": "Rodzaj handlu",
+        'paymentMethod': 'Metoda płatności',
+        # 'status': 'Status',
+        'orderNo': 'Numer zamówienia',
+        'updateTime': "Data aktualizacji"
     }
 
 class Messages:
