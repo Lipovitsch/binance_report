@@ -1,6 +1,6 @@
 ################### Program Info ###################
-VERSION = "1.1"
-RELEASE = "2023/11/22 17:30"
+VERSION = "1.2"
+RELEASE = "2023/11/25 13:30"
 INFO_GUI = f"""
 VERSION
 {VERSION}
@@ -17,6 +17,7 @@ MAIN_WINDOW = "Binance Report Generator v" + VERSION
 
 import os
 import sys
+import json
 import traceback
 from datetime import datetime
 
@@ -29,6 +30,7 @@ import icon
 
 from exceptions import *
 from const import *
+from nbp_api import NBPAPI
 from excel_writer import ExcelWriter
 from gui import Ui_MainWindow
 from binance_report import BinanceReport, get_api_keys
@@ -149,6 +151,12 @@ class BRMainWindow(Ui_MainWindow):
         self.GUI_GroupBox_Daty.setEnabled(False)
         self.GUI_GroupBox_Raport.setEnabled(False)
 
+        binance_report = BinanceReport()
+        self.binance_symbols = binance_report.get_symbols()
+        self.GUI_Label_SymbolList.setText(f"Dostępne symbole ({len(self.binance_symbols)})")
+        self.GUI_List_Symbol.clear()
+        self.GUI_List_Symbol.addItems(self.binance_symbols)
+
 
     def show_program_info(self):
         show_msgbox(INFO_GUI, "Information")
@@ -166,13 +174,6 @@ class BRMainWindow(Ui_MainWindow):
             self.GUI_GroupBox_Wybor.setEnabled(True)
             self.GUI_GroupBox_Daty.setEnabled(True)
             self.GUI_GroupBox_Raport.setEnabled(True)
-
-            api_key, secret_key = get_api_keys(self.path_api_keys)
-            binance_report = BinanceReport(api_key=api_key, secret_key=secret_key)
-            self.binance_symbols = binance_report.get_symbols()
-            self.GUI_Label_SymbolList.setText(f"Dostępne symbole ({len(self.binance_symbols)})")
-            self.GUI_List_Symbol.clear()
-            self.GUI_List_Symbol.addItems(self.binance_symbols)
 
 
     def browse_path_report(self):
@@ -240,13 +241,18 @@ class BRMainWindow(Ui_MainWindow):
     def generate_report(self, progress_callback = None):
         start_date = get_date_as_datetime(self.GUI_Date_Start)
         end_date = get_date_as_datetime(self.GUI_Date_End)
-        
-        if end_date <= start_date:
-            raise DateError("Błędny zakres dat")
 
         if self.path_api_keys == '':
             raise PathError("Podaj lokalizację pliku kluczy API")
         
+        try:
+            api_key, secret_key = get_api_keys(self.path_api_keys)
+        except json.decoder.JSONDecodeError as e:
+            raise APIKeysError(f"Wykryto błąd w składni pliku JSON z kluczami API\n{e}")
+        
+        if end_date <= start_date:
+            raise DateError("Błędny zakres dat")
+
         if self.path_report == '':
             raise PathError("Podaj lokalizację do zapisu raportu")
         
@@ -256,8 +262,6 @@ class BRMainWindow(Ui_MainWindow):
             if len(chosen_symbols) == 0:
                 raise SymbolsError("Wybierz symbole lub odznacz 'Wybór krypto'")
         
-        api_key, secret_key = get_api_keys(self.path_api_keys)
-
         binance_report = BinanceReport(api_key=api_key, secret_key=secret_key, progress_callback=progress_callback)
 
         output_df_dict = {}
@@ -290,17 +294,27 @@ class BRMainWindow(Ui_MainWindow):
         
         if self.GUI_CheckBox_RaportPodatkowy.isChecked():
             list_of_checked.append("Raport_podatkowy")
-            if not "P2P" in output_df_dict.keys():
-                output_df_dict["P2P"] = binance_report.get_p2p_transactions(start_date, end_date)
-            if not "FIAT_Krypto" in output_df_dict.keys():
-                output_df_dict["FIAT_Krypto"] = binance_report.get_fiat_crypto_transactions(start_date, end_date)
-            if not "FIAT" in output_df_dict.keys():
-                output_df_dict["FIAT"] = binance_report.get_fiat_transactions(start_date, end_date)
+
+            p2p_df = binance_report.get_p2p_transactions(start_date, end_date) if not "P2P" in output_df_dict.keys() else output_df_dict["P2P"]
+            fiat_krypto_df = binance_report.get_fiat_crypto_transactions(start_date, end_date) if not "FIAT_Krypto" in output_df_dict.keys() else output_df_dict["FIAT_Krypto"]
+            fiat_df = binance_report.get_fiat_transactions(start_date, end_date) if not "FIAT" in output_df_dict.keys() else output_df_dict["FIAT"]
+
+            fiat_krypto_df = fiat_krypto_df[fiat_krypto_df["Rodzaj handlu"] == "Wpłata"]
 
             columns = ["Data utworzenia", "Ilość FIAT", "Prowizja", "FIAT", "Rodzaj handlu"]
-            to_concat = [el[columns] for el in [output_df_dict["P2P"], output_df_dict["FIAT_Krypto"], output_df_dict["FIAT"]] if len(el) > 0]
-            output_df_dict["Raport_podatkowy"] = pd.concat(to_concat)
-            output_df_dict["Raport_podatkowy"].sort_values(by="Data utworzenia", inplace=True)
+            to_concat = [el[columns] for el in [p2p_df, fiat_krypto_df, fiat_df] if len(el) > 0]
+            raport_podatkowy_df = pd.concat(to_concat) if len(p2p_df) > 0 or len(fiat_krypto_df) > 0 or len(fiat_df) > 0 else pd.DataFrame()
+
+            if len(raport_podatkowy_df) > 0:
+                raport_podatkowy_df.sort_values(by="Data utworzenia", inplace=True)
+                raport_podatkowy_df['Ilość FIAT'] = raport_podatkowy_df.apply(lambda x: x['Ilość FIAT'] if x['Rodzaj handlu'] == 'Wpłata' else -1 * x['Ilość FIAT'], axis=1)
+                raport_podatkowy_df['Kurs do PLN'] = raport_podatkowy_df.apply(lambda x: 1 if x['FIAT'] == 'PLN' else NBPAPI().get_mid_price(x['FIAT'], x['Data utworzenia']), axis=1)
+                raport_podatkowy_df['Wartość końcowa PLN'] = (raport_podatkowy_df['Ilość FIAT'] * raport_podatkowy_df['Kurs do PLN']).round(2)
+                raport_podatkowy_df['Koszt(+)/Dochód(-)'] = raport_podatkowy_df['Wartość końcowa PLN'].cumsum().round(2)
+            else:
+                list_of_empty.append("Raport_podatkowy")
+            
+            output_df_dict["Raport_podatkowy"] = raport_podatkowy_df
         
         if len(output_df_dict) == 0:
             raise CheckBoxError("Nie wybrano żadnej opcji")

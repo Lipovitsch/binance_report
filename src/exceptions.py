@@ -20,3 +20,11 @@ class SymbolsError(BinanceReportException):
 
 class APIError(BinanceReportException):
     pass
+
+
+class NBPAPIError(BinanceReportException):
+    pass
+
+
+class APIKeysError(BinanceReportException):
+    pass
