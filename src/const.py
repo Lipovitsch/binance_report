@@ -59,6 +59,41 @@ class ColumnsMapper:
         'updateTime': "Data aktualizacji"
     }
 
+    BETWEEN_PLATFORM_WITHDRAW = {
+        'applyTime': 'Data',
+        'coin': 'Moneta',
+        'amount': 'Ilość',
+        'transactionFee': 'Prowizja',
+        'network': 'Sieć',
+        'confirmNo': 'Liczba potwierdzeń',
+        'address': 'Adres',
+        'id': 'ID',
+        # 'completeTime': 'Data ukończenia',
+        # 'info': '0xe2fc31f816a9b94326492132018c3aecc4a93ae1',
+        # 'status': 6,
+        # 'transferType': 0,
+        # 'txId': '0x50743dcc84d4d783b56352a62eb4cd6e6402a6386fb62c24cfb84ce4662b3e24',
+        # 'txKey': '',
+        # 'walletType': 0
+    }
+
+    BETWEEN_PLATFORM_DEPOSIT = {
+        'insertTime': 'Data',
+        'coin': 'Moneta',
+        'amount': 'Ilość',
+        'network': 'Sieć',
+        'confirmTimes': 'Liczba potwierdzeń',
+        'address': 'Adres',
+        'id': 'ID',
+        # 'status': 1,
+        # 'transferType': 0,
+        # 'txId': '6322ecede5097e95d09837efdce6b41bcc1859d4aad27a876aedfdf38aedea68',
+        # 'unlockConfirm': 2,
+        # 'walletType': 0,
+        # 'addressTag': '',
+    }
+    
+
 class Messages:
     REPORT_GENERATED = "Wygenerowano raport"
     REPORT_NOT_GENERATED = "Nie wygenerowano raportu"

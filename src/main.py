@@ -1,6 +1,6 @@
 ################### Program Info ###################
-VERSION = "1.2"
-RELEASE = "2023/11/25 13:30"
+VERSION = "1.3"
+RELEASE = "2023/11/28 19:20"
 INFO_GUI = f"""
 VERSION
 {VERSION}
@@ -274,6 +274,12 @@ class BRMainWindow(Ui_MainWindow):
             if len(output_df_dict["Krypto"]) == 0:
                 list_of_empty.append("Krypto")
         
+        if self.GUI_CheckBox_TransakcjeMiedzyPlatformami.isChecked():
+            list_of_checked.append("Transakcje_miedzy_plaftormami")
+            output_df_dict["Transakcje_miedzy_plaftormami"] = binance_report.get_between_platforms_transactions(start_date, end_date)
+            if len(output_df_dict['Transakcje_miedzy_plaftormami']) == 0:
+                list_of_empty.append("Transakcje_miedzy_plaftormami")
+        
         if self.GUI_CheckBox_P2P.isChecked():
             list_of_checked.append("P2P")
             output_df_dict["P2P"] = binance_report.get_p2p_transactions(start_date, end_date)
@@ -333,7 +339,10 @@ class BRMainWindow(Ui_MainWindow):
 
         if len(updated_output_df_dict) > 0:
             xlsx_writer = ExcelWriter(self.path_report)
-            xlsx_writer.save_dataframes_to_excel(updated_output_df_dict)
+            try:
+                xlsx_writer.save_dataframes_to_excel(updated_output_df_dict)
+            except PermissionError:
+                raise FileAccessError(f"Zapis do pliku '{self.path_report}' jest niemożliwy. Zamknij plik i spróbuj ponownie")
         
         if end_msg == '':
             return Messages.REPORT_GENERATED

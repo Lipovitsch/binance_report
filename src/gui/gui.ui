@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>517</width>
-    <height>699</height>
+    <height>728</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>517</width>
-    <height>699</height>
+    <height>728</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -61,6 +61,12 @@
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_3">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>13</height>
+          </size>
+         </property>
          <property name="text">
           <string>Ścieżka do pliku JSON zawierającego klucze API</string>
          </property>
@@ -83,6 +89,12 @@
       <layout class="QGridLayout" name="gridLayout">
        <item row="0" column="2">
         <widget class="QLabel" name="label_2">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>20</height>
+          </size>
+         </property>
          <property name="text">
           <string>Do:</string>
          </property>
@@ -106,7 +118,7 @@
          <property name="minimumSize">
           <size>
            <width>90</width>
-           <height>0</height>
+           <height>20</height>
           </size>
          </property>
          <property name="maximumSize">
@@ -135,7 +147,7 @@
          <property name="minimumSize">
           <size>
            <width>90</width>
-           <height>0</height>
+           <height>20</height>
           </size>
          </property>
          <property name="maximumSize">
@@ -158,6 +170,12 @@
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>20</height>
+          </size>
+         </property>
          <property name="text">
           <string>Od:</string>
          </property>
@@ -219,6 +237,12 @@
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_4">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>13</height>
+          </size>
+         </property>
          <property name="text">
           <string>Ścieżka do zapisu raportu</string>
          </property>
@@ -264,7 +288,7 @@
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>357</height>
+        <height>384</height>
        </size>
       </property>
       <property name="title">
@@ -284,7 +308,7 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="4" column="0">
         <widget class="QCheckBox" name="GUI_CheckBox_P2P">
          <property name="minimumSize">
           <size>
@@ -297,7 +321,7 @@
          </property>
         </widget>
        </item>
-       <item row="5" column="0">
+       <item row="6" column="0">
         <widget class="QCheckBox" name="GUI_CheckBox_FIAT">
          <property name="minimumSize">
           <size>
@@ -374,6 +398,12 @@
           </item>
           <item row="2" column="0">
            <widget class="QLabel" name="GUI_Label_SymbolList">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>13</height>
+             </size>
+            </property>
             <property name="text">
              <string>Dostępne symbole</string>
             </property>
@@ -381,6 +411,12 @@
           </item>
           <item row="2" column="1">
            <widget class="QLabel" name="GUI_Label_SymbolChosen">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>13</height>
+             </size>
+            </property>
             <property name="text">
              <string>Wybrane symbole</string>
             </property>
@@ -394,7 +430,7 @@
             <property name="minimumSize">
              <size>
               <width>0</width>
-              <height>90</height>
+              <height>101</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -410,7 +446,7 @@
             <property name="minimumSize">
              <size>
               <width>0</width>
-              <height>90</height>
+              <height>101</height>
              </size>
             </property>
             <property name="maximumSize">
@@ -424,17 +460,42 @@
          </layout>
         </widget>
        </item>
-       <item row="4" column="0">
+       <item row="5" column="0">
         <widget class="QCheckBox" name="GUI_CheckBox_FIATKrypto">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>17</height>
+          </size>
+         </property>
          <property name="text">
           <string>Transakcje FIAT - krypto</string>
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
+       <item row="7" column="0">
         <widget class="QCheckBox" name="GUI_CheckBox_RaportPodatkowy">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>17</height>
+          </size>
+         </property>
          <property name="text">
           <string>Raport podatkowy</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QCheckBox" name="GUI_CheckBox_TransakcjeMiedzyPlatformami">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>17</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Transakcje między platformami</string>
          </property>
         </widget>
        </item>

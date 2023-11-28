@@ -241,18 +241,93 @@ class BinanceReport(Client):
         return  output_df
 
 
+    def get_between_platforms_transactions(self, start_date: datetime, end_date: datetime):
+        output_deposit = []
+        output_withdraw = []
+        date_inc = timedelta(days=90)
+        periods = math.ceil((end_date - start_date) / date_inc)
+
+        period = 1
+        start_period = start_date
+        end_period = start_date + date_inc
+
+        while start_period < end_date:
+            if end_period >= end_date:
+                end_period = end_date
+            
+            start_timestamp = date_to_timestamp(start_period)
+            end_timestamp = date_to_timestamp(end_period)
+            
+            msg = f"Pobieranie transakcji między platformami ({period}/{periods})..."
+            if self.progress_callback != None:
+                self.progress_callback.emit(msg)
+
+            try:
+                deposit = self.get_deposit_history(startTime=start_timestamp, endTime=end_timestamp, status=1)
+                withdraw = self.get_withdraw_history(startTime=start_timestamp, endTime=end_timestamp, status=6)
+
+            except BinanceExceptions.BinanceAPIException as e:
+                raise APIError(e)
+
+            output_deposit += deposit
+            output_withdraw += withdraw
+            
+            start_period += date_inc
+            end_period += date_inc
+            period += 1
+        
+        deposit_df = pd.DataFrame(output_deposit)
+        withdraw_df = pd.DataFrame(output_withdraw)
+        output_df = pd.DataFrame()
+
+        if len(deposit_df) > 0:
+            deposit_df['insertTime'] = deposit_df['insertTime'].apply(timestamp_to_datetime)
+            deposit_df.sort_values(by='insertTime', inplace=True)
+
+            cols_to_float = ['amount']
+            deposit_df[cols_to_float] = deposit_df[cols_to_float].apply(lambda x: x.astype(float))
+
+            deposit_df = deposit_df[ColumnsMapper.BETWEEN_PLATFORM_DEPOSIT.keys()]
+            deposit_df = deposit_df.rename(ColumnsMapper.BETWEEN_PLATFORM_DEPOSIT, axis=1)
+            deposit_df['Typ transakcji'] = 'Wpłata na Binance'
+            output_df = deposit_df
+        
+        if len(withdraw_df) > 0:
+            withdraw_df['applyTime'] = pd.to_datetime(withdraw_df['applyTime'])
+            withdraw_df.sort_values(by='applyTime', inplace=True)
+
+            cols_to_float = ['amount', 'transactionFee']
+            withdraw_df[cols_to_float] = withdraw_df[cols_to_float].apply(lambda x: x.astype(float))
+
+            withdraw_df = withdraw_df[ColumnsMapper.BETWEEN_PLATFORM_WITHDRAW.keys()]
+            withdraw_df = withdraw_df.rename(ColumnsMapper.BETWEEN_PLATFORM_WITHDRAW, axis=1)
+            withdraw_df['Typ transakcji'] = 'Wypłata z Binance'
+            output_df = withdraw_df
+        
+        if len(deposit_df) > 0 and len(withdraw_df) > 0:
+            output_df = pd.concat([deposit_df, withdraw_df])
+            output_df.sort_values(by='Data', inplace=True)
+            output_df["Liczba potwierdzeń"] = output_df["Liczba potwierdzeń"].apply(lambda x: str(x))
+
+            output_df = output_df[list(ColumnsMapper.BETWEEN_PLATFORM_WITHDRAW.values()) + ['Typ transakcji']]
+
+        return output_df
+
+
 def main():
-    api_key, secret_key = get_api_keys(r"data/keys_r.json")
+    api_key, secret_key = get_api_keys(r"data/keys_n.json")
     client = BinanceReport(api_key, secret_key)
     # result = client.get_fiat_crypto_transactions(datetime(2023, 1, 1), datetime(2024, 1, 1))
     # result = client.get_fiat_transactions(datetime(2021, 1, 1), datetime(2022, 1, 1))
 
-    start_date = datetime(2023, 10, 1)
-    end_date = datetime(2023, 12, 1)
+    start_date = datetime(2022, 7, 1)
+    # end_date = datetime(2023, 12, 1)
+    end_date = start_date + timedelta(days=90)
     start_timestamp = date_to_timestamp(start_date)
     end_timestamp = date_to_timestamp(end_date)
     # result = client.get_fiat_payments_history(transactionType=0, beginTime=start_timestamp, endTime=end_timestamp, page=0)
-    result = client.get_lending_purchase_history(startTime=start_timestamp, endTime=end_timestamp)
+    # result = client.get_lending_purchase_history(startTime=start_timestamp, endTime=end_timestamp)
+    result = client.get_withdraw_history(startTime=start_timestamp, endTime=end_timestamp, status=6)
     # /sapi/v1/lending/auto-invest/history/list
     pprint(result)
     

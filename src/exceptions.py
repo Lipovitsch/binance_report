@@ -28,3 +28,11 @@ class NBPAPIError(BinanceReportException):
 
 class APIKeysError(BinanceReportException):
     pass
+
+
+class DateRangeError(BinanceReportException):
+    pass
+
+
+class FileAccessError(BinanceReportException):
+    pass

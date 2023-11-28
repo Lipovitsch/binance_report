@@ -1,10 +1,14 @@
 # Binance report generator
-![image](https://github.com/Lipovitsch/binance_report/assets/92733509/0e489ee6-962f-459e-96d6-a5bc5c3b2af9)
+![image](https://github.com/Lipovitsch/binance_report/assets/92733509/8d0a595b-9253-4826-b707-efd1f7585147)
 
 ## Versions
 You can find current version inside the build folder
 
-### Version 1.2 (current)
+### Version 1.3 (current)
+- Added transactions between platforms
+- Added PermisionError handling
+
+### Version 1.2 
 - Added columns to tax report
 
 ### Version 1.1
