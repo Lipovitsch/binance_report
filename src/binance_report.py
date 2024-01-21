@@ -315,19 +315,21 @@ class BinanceReport(Client):
 
 
 def main():
-    api_key, secret_key = get_api_keys(r"data/keys_n.json")
+    api_key, secret_key = get_api_keys(r"data/keys_r.json")
     client = BinanceReport(api_key, secret_key)
     # result = client.get_fiat_crypto_transactions(datetime(2023, 1, 1), datetime(2024, 1, 1))
     # result = client.get_fiat_transactions(datetime(2021, 1, 1), datetime(2022, 1, 1))
 
-    start_date = datetime(2022, 7, 1)
+    start_date = datetime(2023, 12, 1)
     # end_date = datetime(2023, 12, 1)
     end_date = start_date + timedelta(days=90)
     start_timestamp = date_to_timestamp(start_date)
     end_timestamp = date_to_timestamp(end_date)
-    # result = client.get_fiat_payments_history(transactionType=0, beginTime=start_timestamp, endTime=end_timestamp, page=0)
+    # result = client.get_fiat_payments_history(transactionType=0, beginTime=start_timestamp, endTime=end_timestamp)
     # result = client.get_lending_purchase_history(startTime=start_timestamp, endTime=end_timestamp)
-    result = client.get_withdraw_history(startTime=start_timestamp, endTime=end_timestamp, status=6)
+    # result = client.get_withdraw_history(startTime=start_timestamp, endTime=end_timestamp, status=6)
+    result = client.get_pay_trade_history(orderType='C2C')
+    
     # /sapi/v1/lending/auto-invest/history/list
     pprint(result)
     

@@ -4,7 +4,11 @@
 ## Versions
 You can find current version inside the build folder
 
-### Version 1.3 (current)
+### Version 1.4 (current)
+TODO:
+- Fixed option for choosing crypto
+
+### Version 1.3
 - Added transactions between platforms
 - Added PermisionError handling
 

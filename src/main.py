@@ -1,6 +1,6 @@
 ################### Program Info ###################
-VERSION = "1.3"
-RELEASE = "2023/11/28 19:20"
+VERSION = "1.4"
+RELEASE = "2024/01/21 16:30"
 INFO_GUI = f"""
 VERSION
 {VERSION}
@@ -210,6 +210,8 @@ class BRMainWindow(Ui_MainWindow):
     def add_chosen_symbol(self):
         symbol = self.GUI_List_Symbol.currentItem()
         self.GUI_List_SymbolChosen.addItem(symbol.text())
+        # symbols = self.GUI_List_SymbolChosen.findItems("*", Qt.MatchFlag.MatchWildcard)
+        # print([symbol.text() for symbol in symbols])
 
 
     def remove_chosen_symbol(self):
@@ -220,6 +222,7 @@ class BRMainWindow(Ui_MainWindow):
 
     def get_chosen_symbols(self) -> list:
         symbols = self.GUI_List_SymbolChosen.findItems("*", Qt.MatchFlag.MatchWildcard)
+        # print([symbol.text() for symbol in symbols])
         return [symbol.text() for symbol in symbols]
 
     
@@ -242,6 +245,10 @@ class BRMainWindow(Ui_MainWindow):
         start_date = get_date_as_datetime(self.GUI_Date_Start)
         end_date = get_date_as_datetime(self.GUI_Date_End)
 
+        # print(self.GUI_GroupBox_WyborKrypto.isChecked())
+        # print(self.GUI_CheckBox_Krypto.isChecked())
+        # print(self.get_chosen_symbols())
+
         if self.path_api_keys == '':
             raise PathError("Podaj lokalizację pliku kluczy API")
         
@@ -257,7 +264,7 @@ class BRMainWindow(Ui_MainWindow):
             raise PathError("Podaj lokalizację do zapisu raportu")
         
         chosen_symbols = None
-        if self.GUI_GroupBox_WyborKrypto.isChecked() and self.GUI_GroupBox_WyborKrypto.isEnabled():
+        if self.GUI_GroupBox_WyborKrypto.isChecked() and self.GUI_CheckBox_Krypto.isChecked():
             chosen_symbols = self.get_chosen_symbols()
             if len(chosen_symbols) == 0:
                 raise SymbolsError("Wybierz symbole lub odznacz 'Wybór krypto'")
